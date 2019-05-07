@@ -1,0 +1,20 @@
+test_search_cube:
+    url: https://xueqiu.com/cube/search.json
+    method: GET
+    header:
+      {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
+        'Cookie': 'xq_a_token=682c39a460645dafb1ff41f67e0efccba8b0f118',
+        'Content-Type':'application/json;charset=UTF-8'
+      }
+test_search_sock:
+    url: https://xueqiu.com/cube/search.json
+    method: GET
+    header:
+      {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
+        'Cookie': 'xq_a_token=682c39a460645dafb1ff41f67e0efccba8b0f118',
+        'Content-Type':'application/json;charset=UTF-8'
+      }
+
+
