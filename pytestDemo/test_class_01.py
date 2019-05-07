@@ -22,7 +22,7 @@ def test_w_one():
 
 
 def test_w_two():
-    print('不在类中的方法2')
+    print('不在类中的方法2function')
 
 
 class TestClass:

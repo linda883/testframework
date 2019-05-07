@@ -1,6 +1,5 @@
 import unittest
-import requests
-from unittestDemo.mathcaculate import *
+from frameworkDemo.unittestDemoR.caculate import *
 
 
 class TestClass(unittest.TestCase):
@@ -15,11 +14,7 @@ class TestClass(unittest.TestCase):
         print("这是每一个测试方法后面运行的方法")
 
     def test_first(self):
-        print("这是测试方法1-进行接口测试demo")
-        # 这是利用requests第三方库（进行发请求，收响应）向百度发个get请求
-        res = requests.get('http://www.baidu.com')
-        # 这是输出返回结果
-        print(res.text)
+        print("这是测试方法1")
 
     def test_second(self):
         print("这是测试方法2-研究一下python的断言")

@@ -1,6 +1,6 @@
 import unittest
 import requests
-import os, time
+import os, time,sys
 from HTMLTestRunner import HTMLTestRunner
 from mathcaculate import *
 
@@ -50,6 +50,7 @@ class TestClass(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    sys.path.append('/Users/lindafang/PycharmProjects/testframework/unittestDemo')
     # 设置报告的路径
     report_path = os.path.join(os.path.dirname(__file__), 'report')
     # 通过当前时间命名报告

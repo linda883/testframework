@@ -4,6 +4,7 @@ import os
 import yaml
 import allure
 
+
 def _base_data(file_name):
 
     cur_path = os.path.dirname(os.path.realpath(__file__))
