@@ -3,7 +3,7 @@
 import pytest
 
 
-@pytest.fixture(params=[1, 2, 3])
+@pytest.fixture(params=[1, 2, 3, 'linda'])
 def test_data(request):
     return request.param
 
