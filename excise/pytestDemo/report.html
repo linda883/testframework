@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    toggle_sort_states(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+    var multiplier = reversed ? -1 : 1;
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+        return multiplier * (key_a >= key_b ? 1 : -1);
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 07-May-2019 at 14:46:57 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v1.20.0</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>/Library/Java/JavaVirtualMachines/jdk1.8.0_201.jdk/Contents/Home</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;4.4.1&apos;, &apos;py&apos;: &apos;1.8.0&apos;, &apos;pluggy&apos;: &apos;0.9.0&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Darwin-18.5.0-x86_64-i386-64bit</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;sugar&apos;: &apos;0.9.2&apos;, &apos;metadata&apos;: &apos;1.8.0&apos;, &apos;html&apos;: &apos;1.20.0&apos;, &apos;cov&apos;: &apos;2.6.1&apos;, &apos;assume&apos;: &apos;1.2.2&apos;, &apos;allure-pytest&apos;: &apos;2.6.0&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.6.8</td></tr></table>
+    <h2>Summary</h2>
+    <p>54 tests ran in 1.75 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">47 passed</span>, <input checked="true" class="filter" data-test-result="skipped" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">3 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">6 failed</span>, <input checked="true" class="filter" data-test-result="error" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">5 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">1 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_fixture_azskip_broken_fail_run_01.py::test_with_failure_in_the_fixture::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.fixture<br/>    def fail_fixture():<br/>&gt;       assert False<br/><span class="error">E       assert False</span><br/><br/>test_fixture_azskip_broken_fail_run_01.py:12: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_fixture_azskip_broken_fail_run_01.py::test_with_broken_fixture::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.fixture<br/>    def broken_fixture():<br/>&gt;       raise Exception(&quot;Sorry, it&#x27;s 中断异常.&quot;)<br/><span class="error">E       Exception: Sorry, it&#x27;s 中断异常.</span><br/><br/>test_fixture_azskip_broken_fail_run_01.py:17: Exception<br/></div></td></tr></tbody>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_mark_param_yaml_plus.py::test_search[query_param0]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.fixture(autouse=True)<br/>    def get_base_data():<br/>&gt;       base_data = _base_data(&#x27;test_search.yml&#x27;)<br/><br/>test_mark_param_yaml_plus.py:19: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>file_name = &#x27;test_search.yml&#x27;<br/><br/>    def _base_data(file_name):<br/>    <br/>        cur_path = os.path.dirname(os.path.realpath(__file__))<br/>        yaml1 = os.path.join(cur_path, file_name)<br/>&gt;       f1 = open(yaml1)  # 打开yaml文件<br/><span class="error">E       FileNotFoundError: [Errno 2] No such file or directory: &#x27;/Users/lindafang/PycharmProjects/testframework/pytestDemo/test_search.yml&#x27;</span><br/><br/>test_mark_param_yaml_plus.py:12: FileNotFoundError<br/></div></td></tr></tbody>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_mark_param_yaml_plus.py::test_search[query_param1]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.fixture(autouse=True)<br/>    def get_base_data():<br/>&gt;       base_data = _base_data(&#x27;test_search.yml&#x27;)<br/><br/>test_mark_param_yaml_plus.py:19: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>file_name = &#x27;test_search.yml&#x27;<br/><br/>    def _base_data(file_name):<br/>    <br/>        cur_path = os.path.dirname(os.path.realpath(__file__))<br/>        yaml1 = os.path.join(cur_path, file_name)<br/>&gt;       f1 = open(yaml1)  # 打开yaml文件<br/><span class="error">E       FileNotFoundError: [Errno 2] No such file or directory: &#x27;/Users/lindafang/PycharmProjects/testframework/pytestDemo/test_search.yml&#x27;</span><br/><br/>test_mark_param_yaml_plus.py:12: FileNotFoundError<br/></div></td></tr></tbody>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_mark_param_yaml_plus.py::test_search[query_param2]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.fixture(autouse=True)<br/>    def get_base_data():<br/>&gt;       base_data = _base_data(&#x27;test_search.yml&#x27;)<br/><br/>test_mark_param_yaml_plus.py:19: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>file_name = &#x27;test_search.yml&#x27;<br/><br/>    def _base_data(file_name):<br/>    <br/>        cur_path = os.path.dirname(os.path.realpath(__file__))<br/>        yaml1 = os.path.join(cur_path, file_name)<br/>&gt;       f1 = open(yaml1)  # 打开yaml文件<br/><span class="error">E       FileNotFoundError: [Errno 2] No such file or directory: &#x27;/Users/lindafang/PycharmProjects/testframework/pytestDemo/test_search.yml&#x27;</span><br/><br/>test_mark_param_yaml_plus.py:12: FileNotFoundError<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_fixture_assert_skip_01.py::test_soso</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">login = None<br/><br/>    def test_soso(login):<br/>        print(&#x27;case1: 登际后执行搜索&#x27;)<br/>        assert 1 == 1<br/>&gt;       assert {&#x27;name&#x27;: &#x27;linda&#x27;, &#x27;age&#x27;: 18} == {&#x27;name&#x27;: &#x27;linda&#x27;, &#x27;age&#x27;: 188}<br/><span class="error">E       AssertionError: assert {&#x27;age&#x27;: 18, &#x27;name&#x27;: &#x27;linda&#x27;} == {&#x27;age&#x27;: 188, &#x27;name&#x27;: &#x27;linda&#x27;}</span><br/><span class="error">E         Omitting 1 identical items, use -vv to show</span><br/><span class="error">E         Differing items:</span><br/><span class="error">E         {&#x27;age&#x27;: 18} != {&#x27;age&#x27;: 188}</span><br/><span class="error">E         Full diff:</span><br/><span class="error">E         - {&#x27;age&#x27;: 18, &#x27;name&#x27;: &#x27;linda&#x27;}</span><br/><span class="error">E         + {&#x27;age&#x27;: 188, &#x27;name&#x27;: &#x27;linda&#x27;}</span><br/><span class="error">E         ?           +</span><br/><br/>test_fixture_assert_skip_01.py:9: AssertionError<br/>---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>case1: 登际后执行搜索
+</div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_fixture_assert_skip_01.py::test_cakan</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">def test_cakan():<br/>        print(&#x27;case2:不登陆就看&#x27;)<br/>&gt;       assert f() == 4<br/><span class="error">E       assert 3 == 4</span><br/><span class="error">E         -3</span><br/><span class="error">E         +4</span><br/><br/>test_fixture_assert_skip_01.py:22: AssertionError<br/>----------------------------- Captured stdout call -----------------------------<br/>case2:不登陆就看
+</div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_mark_param_list_07.py::test_eval[7*5-30]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">test_input = &#x27;7*5&#x27;, expected = 30<br/><br/>    @pytest.mark.parametrize(&quot;test_input,expected&quot;,[(&quot;3+5&quot;, 8),<br/>                                                    (&quot;2+5&quot;, 7),<br/>                                                    (&quot;7*5&quot;, 30),<br/>                                                    ])<br/>    def test_eval(test_input, expected):<br/>        # eval将字符串str当成有效的表达式来求值并返回计算结果<br/>&gt;       assert eval(test_input) == expected<br/><span class="error">E       assert 35 == 30</span><br/><span class="error">E         -35</span><br/><span class="error">E         +30</span><br/><br/>test_mark_param_list_07.py:11: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_mark_param_request2_08.py::test_login[login_r2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">login_r = False<br/><br/>    @pytest.mark.parametrize(&quot;login_r&quot;, test_user_data, indirect=True)<br/>    def test_login(login_r):<br/>        # 登陆用例<br/>        a = login_r<br/>        print(&quot;测试用例中login的返回值：%s&quot; % a)<br/>&gt;       assert a, &quot;失败原因：密码为空&quot;<br/><span class="error">E       AssertionError: 失败原因：密码为空</span><br/><span class="error">E       assert False</span><br/><br/>test_mark_param_request2_08.py:28: AssertionError<br/>---------------------------- Captured stdout setup -----------------------------<br/>
+打开首页准备登陆，登陆用户:test01，密码:
+----------------------------- Captured stdout call -----------------------------<br/>测试用例中login的返回值：False
+</div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_order.py::test_02</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.mark.last<br/>    def test_02():<br/>        print(&#x27;test02&#x27;)<br/>&gt;       assert(4==1)<br/><span class="error">E       assert 4 == 1</span><br/><span class="error">E         -4</span><br/><span class="error">E         +1</span><br/><br/>test_order.py:11: AssertionError<br/>----------------------------- Captured stdout call -----------------------------<br/>test02
+</div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_reruns.py::test_rerun</td>
+          <td class="col-duration">1.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">def test_rerun():<br/>        time.sleep(1)<br/>        a = random.randint(1, 3)<br/>        print(a)<br/>&gt;       assert 3 == a<br/><span class="error">E       assert 3 == 1</span><br/><span class="error">E         -3</span><br/><span class="error">E         +1</span><br/><br/>test_reruns.py:9: AssertionError<br/>----------------------------- Captured stdout call -----------------------------<br/>1
+</div></td></tr></tbody>
+      <tbody class="xfailed results-table-row">
+        <tr>
+          <td class="col-result">XFailed</td>
+          <td class="col-name">test_fixture_assert_skip_01.py::test_xfail</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.mark.xfail<br/>    def test_xfail():<br/>&gt;       print(broken_fixture())<br/><br/>test_fixture_assert_skip_01.py:41: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>    def broken_fixture():<br/>&gt;       raise Exception(&quot;Sorry, it&#x27;s 中断异常.&quot;)<br/><span class="error">E       Exception: Sorry, it&#x27;s 中断异常.</span><br/><br/>test_fixture_assert_skip_01.py:45: Exception<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">test_fixture_azskip_broken_fail_run_01.py::test_with_pytest_skip_in_the_fixture::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">(&#x27;/Users/lindafang/PycharmProjects/testframework/pytestDemo/test_fixture_azskip_broken_fail_run_01.py&#x27;, 7, &#x27;Skipped: &lt;Skipped instance&gt;&#x27;)<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">test_fixture_usefixtures_05.py::test_quit::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">(&#x27;test_fixture_usefixtures_05.py&#x27;, 22, &#x27;Skipped: 不想退出&#x27;)<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">test_order.py::test_03::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">(&#x27;test_order.py&#x27;, 13, &#x27;Skipped: unconditional skip&#x27;)<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_class_01.py::test_w_one</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>整个模块.py开始
+不在类中的函数前
+----------------------------- Captured stdout call -----------------------------<br/>不在类中的方法1
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_class_01.py::test_w_two</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>不在类中的函数前
+----------------------------- Captured stdout call -----------------------------<br/>不在类中的方法2function
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_class_01.py::TestClass::test_one</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>类前面
+方法前
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_class_01.py::TestClass::test_two</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>方法前
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_class_01.py::TestClass::test_three</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>方法前
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_assert_skip_01.py::test_cart</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>case3,登陆，点击苹果图标，3.6以下版本无法执行
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_b02.py::test_cart</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！
+----------------------------- Captured stdout call -----------------------------<br/>用例1，登陆后执行添加购物车功能操作
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_b02.py::test_search</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>用例2，不登陆查询功能操作
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_b02.py::test_pay</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！
+----------------------------- Captured stdout call -----------------------------<br/>用例3，登陆后执行支付功能操作
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c1_03.py::test_s1</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>用例1，登陆后执行其它功能操作c1
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c1_03.py::test_s2</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>用例2，不登陆后执行其它功能操作c2
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c1_03.py::test_s3</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>用例3，登陆后执行其它功能操作c3
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c2_03.py::test_s4</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>用例4，登陆后执行其它功能操作4c4
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c2_03.py::test_s5</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>用例5，不登陆后执行其它功能操作c5
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_c2_03.py::test_s6</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+输入用户名密码登陆！C
+----------------------------- Captured stdout call -----------------------------<br/>用例5，登陆后执行其它功能操作c6
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_cyeild_04.py::test_search</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+打开浏览器，打开百度首页
+----------------------------- Captured stdout call -----------------------------<br/>用例7，搜索关键字测试执行
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_cyeild_04.py::test_tieba</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>用例8，进入贴吧功能
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_cyeild_04.py::test_news</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>用例9，进入资讯功能
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_finalize.py::TestClass::test_with_scoped_finalizers[param_true]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>True
+----------------------------- Captured stdout call -----------------------------<br/>这是要执行的具体用例
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_finalize.py::TestClass::test_with_scoped_finalizers[param_false]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>False
+----------------------------- Captured stdout call -----------------------------<br/>这是要执行的具体用例
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_param_request_06.py::test_one[1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>
+test data: 1
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_param_request_06.py::test_one[2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>
+test data: 2
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_param_request_06.py::test_one[3]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>
+test data: 3
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_twofixture_autouse_05.py::test_soso</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>打开首页！
+这是个登陆模块！
+----------------------------- Captured stdout call -----------------------------<br/>case1: 登际后执行搜索
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_twofixture_autouse_05.py::test_cakan</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>打开首页！
+这是个登陆模块！
+----------------------------- Captured stdout call -----------------------------<br/>case2:不登陆就看
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_twofixture_autouse_05.py::test_cart</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>打开首页！
+这是个登陆模块！
+----------------------------- Captured stdout call -----------------------------<br/>case3,登陆，加购物车
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_usefixtures_05.py::test_soso</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+----begin-登陆--
+----------------------------- Captured stdout call -----------------------------<br/>
+case1: 登际后执行搜索
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_usefixtures_05.py::test_cakan</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>
+case2:不登陆就看
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_fixture_usefixtures_05.py::test_cart</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+----begin-登陆--
+----------------------------- Captured stdout call -----------------------------<br/>
+case3,登陆，加购物车
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_list_07.py::test_eval[3+5-8]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_list_07.py::test_eval[2+5-7]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request1_08.py::test_login[linda]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+打开首页准备登陆，登陆用户:linda
+----------------------------- Captured stdout call -----------------------------<br/>测试用例中login的返回值：linda
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request1_08.py::test_login[servenruby]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+打开首页准备登陆，登陆用户:servenruby
+----------------------------- Captured stdout call -----------------------------<br/>测试用例中login的返回值：servenruby
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request2_08.py::test_login[login_r0]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+打开首页准备登陆，登陆用户:linda，密码:888888
+----------------------------- Captured stdout call -----------------------------<br/>测试用例中login的返回值：True
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request2_08.py::test_login[login_r1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+打开首页准备登陆，登陆用户:servenruby，密码:123456
+----------------------------- Captured stdout call -----------------------------<br/>测试用例中login的返回值：True
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r0-query_param0]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+用户名:linda，密码:888888
+查询的搜索词：中国平安
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;中国平安&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r0-query_param1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>查询的搜索词：阿里巴巴
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;阿里巴巴&#x27;, &#x27;count&#x27;: 2, &#x27;page&#x27;: 2}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r1-query_param1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+用户名:servenruby，密码:123456
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;阿里巴巴&#x27;, &#x27;count&#x27;: 2, &#x27;page&#x27;: 2}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r1-query_param0]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>查询的搜索词：中国平安
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;中国平安&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r1-query_param2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>查询的搜索词：pdd
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;pdd&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r0-query_param2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+用户名:linda，密码:888888
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;pdd&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r2-query_param2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>
+用户名:test01，密码:
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;pdd&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r2-query_param1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>查询的搜索词：阿里巴巴
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;阿里巴巴&#x27;, &#x27;count&#x27;: 2, &#x27;page&#x27;: 2}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_param_request3_08.py::test_login[login_r2-query_param0]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stdout setup -----------------------------<br/>查询的搜索词：中国平安
+----------------------------- Captured stdout call -----------------------------<br/>None
+{&#x27;q&#x27;: &#x27;中国平安&#x27;, &#x27;count&#x27;: 3, &#x27;page&#x27;: 1}
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_mark_zi_09.py::test_send_http</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_order.py::test_01</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>test01
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_order.py::test_04</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>test04
+</div></td></tr></tbody></table></body></html>
