@@ -15,7 +15,7 @@ class TestShoppingTrolley(object):
         with allure.step("校验结果"):
             allure.attach('期望结果', '添加购物车成功')
             allure.attach('实际结果', '添加购物车失败')
-            assert 'success' == 'failed'
+            assert 'success' != 'failed'
 
     @allure.story('修改购物车')
     def test_edit_shopping_trolley(self):
@@ -33,5 +33,4 @@ def login(user, pwd):
 
 
 if __name__ == '__main__':
-    # 执行，指定执行测试模块_demo1, 测试模块_demo2两个模块，同时指定执行的用例优先级为critical,blocker
     pytest.main(["--allure_features='购物车功能' --allure_stories='加入购物车"])

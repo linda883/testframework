@@ -36,6 +36,13 @@ def query_param(request):
     return request.param
 
 
+@allure.description_html("""
+<h1>这是一个调试的测试内容，查看一下人名和断言</h1>
+<table style="width:100%">
+{get_base_data}
+</table>
+""")
+@allure.description("一个是调用，一个是数据")
 @allure.title("参数化: adding {query_param} 到请求中")
 @pytest.mark.parametrize("query_param", test_user_data2, indirect=True)
 def test_search(get_base_data, query_param):

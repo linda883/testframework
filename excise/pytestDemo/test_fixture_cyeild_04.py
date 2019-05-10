@@ -27,4 +27,4 @@ def test_news(open_browser):
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main(['-s','test_fixture_cyeild_04.py'])
