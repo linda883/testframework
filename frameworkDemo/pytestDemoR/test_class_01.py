@@ -40,11 +40,11 @@ class TestClass:
 
     def test_one(self):
         x = "this"
-        assert "h" in x
+        assert "h5" in x
 
     def test_two(self):
         x = "hello"
-        assert "hello" == x
+        assert "hello1" == x
 
     def test_three(self):
         a = "hello"
