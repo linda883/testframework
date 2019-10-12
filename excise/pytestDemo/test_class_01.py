@@ -26,7 +26,7 @@ def test_w_two():
 
 
 class TestClass:
-    def setup_class(self):
+    def setup_class(self) -> None:
         print('类前面')
 
     def teardown_class(self):
@@ -40,14 +40,14 @@ class TestClass:
 
     def test_one(self):
         x = "this"
-        assert "h" in x
+        assert "h55" in x
 
     def test_two(self):
         x = "hello"
-        assert "hello" == x
+        assert "hell4o" == x
 
     def test_three(self):
-        a = "hello"
+        a = "hello44"
         b = "hello world"
         assert a in b
 

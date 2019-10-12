@@ -20,7 +20,8 @@ def str_add(str1, str2):
 @allure.story("测试模块_demo2")             # 功能块，具有相同feature或story的用例将规整到相同模块下,执行时可用于筛选
 # @allure.issue("BUG号：123")                 # BUG编号，关联标识已有的问题，可为一个url链接地址
 @allure.issue("http://www.jira.com/id=19688")   # BUG编号，关联标识已有的问题，可为一个url链接地址
-@allure.testcase("用例名：测试字符串相等")      # 用例标识，关联标识用例，可为一个url链接地址
+# @allure.testcase("用例名：测试字符串相等")      # 用例标识，关联标识用例，可为一个url链接地址
+@allure.testcase("http://www.testlink.com/id=19688")
 @pytest.mark.parametrize("para_one, para_two",              # 用例参数
                          [("hello world", "hello world"),   # 用例参数的参数化数据
                           ('4', '54'),
@@ -30,7 +31,7 @@ def str_add(str1, str2):
                               "decimal123",
                               "unicode",
                               "mix"])
-def test_case_example(para_one, para_two):
+def test_case_19688(para_one, para_two):
     """用例描述：测试字符串相等
     :param para_one: 参数1
     :param para_two: 参数2

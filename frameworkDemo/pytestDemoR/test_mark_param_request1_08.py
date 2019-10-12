@@ -12,7 +12,7 @@ def login_r(request):
     return user
 
 
-# 这是pytest的参数化数据驱动，indeirect=True 是把login_r当作函数去执行
+# 这是pytest的参数化数据驱动，indirect=True 是把login_r当作函数去执行
 @pytest.mark.parametrize("login_r", test_user_data, indirect=True)
 def test_login(login_r):
     # 登陆用例
